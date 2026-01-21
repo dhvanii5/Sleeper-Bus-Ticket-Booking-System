@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from ...api.dependencies import get_db
 from ...services.prediction_service import PredictionService
-from ...schemas.seat import PredictionRequest, PredictionResponse
+from ...schemas.schemas import PredictionRequest, PredictionResponse
 
 router = APIRouter()
 

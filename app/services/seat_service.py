@@ -2,8 +2,8 @@ from sqlalchemy.orm import Session
 from datetime import datetime
 from ..models.seat import Seat, SeatAvailability
 from ..models.station import Station
-from ..core.exceptions import SeatNotAvailableException, DoubleBookingException
-from ..utils.helpers import calculate_distance_between_stations, get_distance_multiplier, get_seat_type_multiplier
+from ..core.common import SeatNotAvailableException, DoubleBookingException
+from ..utils.utils import calculate_distance_between_stations, get_distance_multiplier, get_seat_type_multiplier
 
 
 class SeatService:
@@ -20,24 +20,31 @@ class SeatService:
         Get available seats for a specific route and date.
         A seat is available if it's not booked for any segment within the route.
         """
-        # Get all seat availability records for the route segments
-        booked_seats = db.query(SeatAvailability).filter(
-            SeatAvailability.from_station_id >= (
-                db.query(Station.sequence).filter(Station.id == from_station_id).scalar()
-            ),
-            SeatAvailability.to_station_id <= (
-                db.query(Station.sequence).filter(Station.id == to_station_id).scalar()
-            ),
-            SeatAvailability.journey_date == journey_date,
-            SeatAvailability.is_booked == True
+        # Convert str to date
+        dt_journey_date = datetime.strptime(journey_date, "%Y-%m-%d").date()
+
+        # Get sequences for the requested route
+        from_seq = db.query(Station.sequence).filter(Station.id == from_station_id).scalar()
+        to_seq = db.query(Station.sequence).filter(Station.id == to_station_id).scalar()
+        
+        if from_seq is None or to_seq is None:
+            # Invalid stations
+            return []
+
+        # Find overlapping bookings
+        overlapping_bookings = db.query(SeatAvailability).filter(
+            SeatAvailability.journey_date == dt_journey_date,
+            SeatAvailability.is_booked == True,
+            SeatAvailability.from_station_id < to_seq, # Start < RequestEnd
+            SeatAvailability.to_station_id > from_seq  # End > RequestStart
         ).all()
         
-        booked_seat_ids = {record.seat_id for record in booked_seats}
+        blocked_seat_ids = {record.seat_id for record in overlapping_bookings}
         
-        # Get all seats and filter out booked ones
+        # Get all seats and filter out blocked ones
         available_seats = db.query(Seat).filter(
             Seat.is_available == True,
-            ~Seat.id.in_(booked_seat_ids)
+            ~Seat.id.in_(blocked_seat_ids)
         ).all()
         
         return available_seats
@@ -53,6 +60,9 @@ class SeatService:
         """
         Check if a specific seat is available for the given route and date.
         """
+        # Convert str to date
+        dt_journey_date = datetime.strptime(journey_date, "%Y-%m-%d").date()
+
         # Check if seat exists and is marked as available
         seat = db.query(Seat).filter(Seat.id == seat_id).first()
         if not seat or not seat.is_available:
@@ -64,9 +74,9 @@ class SeatService:
         
         existing_bookings = db.query(SeatAvailability).filter(
             SeatAvailability.seat_id == seat_id,
-            SeatAvailability.journey_date == journey_date,
+            SeatAvailability.journey_date == dt_journey_date,
             SeatAvailability.is_booked == True,
-            # Check for overlapping routes
+            # Check for overlapping routes (using IDs as proxy for sequence in this hardcoded setup)
             SeatAvailability.from_station_id < to_seq,
             SeatAvailability.to_station_id > from_seq
         ).first()
@@ -86,11 +96,14 @@ class SeatService:
         booking_id: int
     ):
         """Block a seat for a booking"""
+        # Convert str to date
+        dt_journey_date = datetime.strptime(journey_date, "%Y-%m-%d").date()
+
         seat_availability = SeatAvailability(
             seat_id=seat_id,
             from_station_id=from_station_id,
             to_station_id=to_station_id,
-            journey_date=journey_date,
+            journey_date=dt_journey_date,
             is_booked=True,
             booked_by=booking_id
         )
@@ -106,11 +119,14 @@ class SeatService:
         journey_date: str
     ):
         """Release a blocked seat"""
+        # Convert str to date
+        dt_journey_date = datetime.strptime(journey_date, "%Y-%m-%d").date()
+
         seat_availability = db.query(SeatAvailability).filter(
             SeatAvailability.seat_id == seat_id,
             SeatAvailability.from_station_id == from_station_id,
             SeatAvailability.to_station_id == to_station_id,
-            SeatAvailability.journey_date == journey_date,
+            SeatAvailability.journey_date == dt_journey_date,
             SeatAvailability.is_booked == True
         ).first()
         

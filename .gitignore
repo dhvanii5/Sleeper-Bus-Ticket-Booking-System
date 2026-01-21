@@ -1,24 +1,63 @@
-# Byte-compiled / optimized / DLL files
+# Python bytecode
 __pycache__/
 *.py[cod]
 *$py.class
+*.so
 
-# Virtual environments
+# Virtual Environment
+.venv/
 venv/
-env/
 ENV/
+env/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+sleeper_bus_db.db
 
 # Environment variables
 .env
 .env.local
 
-# Database
-*.db
-test.db
+# Test outputs (temporary files)
+verify_output_*.txt
+test_output_*.txt
+debug_*.txt
 
 # Logs
 *.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+
+# pytest
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+.dmypy.json
+
+# Keep these files
+!final_verification.txt
+!FINAL_VERIFICATION.md

@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from ..models.station import Station
-from ..core.exceptions import InvalidStationException
+from ..core.common import InvalidStationException
 
 
 class StationService:

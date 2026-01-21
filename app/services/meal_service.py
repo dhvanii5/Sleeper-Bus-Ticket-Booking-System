@@ -1,6 +1,6 @@
 from sqlalchemy.orm import Session
 from ..models.meal import Meal
-from ..core.exceptions import InvalidBookingException
+from ..core.common import InvalidBookingException
 
 
 class MealService:

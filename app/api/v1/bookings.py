@@ -3,51 +3,47 @@ from sqlalchemy.orm import Session
 from typing import List
 from ...api.dependencies import get_db
 from ...services.booking_service import BookingService
-from ...schemas.seat import Booking, BookingCreate, BookingCancellation
+from ...schemas.schemas import BookingResponse, BookingCreate, BookingCancellation
 
 router = APIRouter()
 
 
-@router.post("/", response_model=Booking)
+@router.post("/", response_model=BookingResponse)
 async def create_booking(
     booking: BookingCreate,
     db: Session = Depends(get_db)
 ):
     """
     Create a new booking
-    
-    Body:
-    - user_name: Passenger name
-    - email: Passenger email
-    - phone: Passenger phone (10 digits)
-    - from_station_id: Starting station ID
-    - to_station_id: Destination station ID
-    - seat_id: Seat to book
-    - journey_date: Travel date in YYYY-MM-DD format
-    - meals: Optional list of meal IDs to add
     """
-    new_booking = BookingService.create_booking(
-        db,
-        booking.user_name,
-        booking.email,
-        booking.phone,
-        booking.from_station_id,
-        booking.to_station_id,
-        booking.seat_id,
-        booking.journey_date,
-        booking.meals
-    )
-    return new_booking
+    # Service returns database Booking model
+    new_booking = BookingService.create_booking(db, booking)
+    
+    # We need to explicitly construct the response because our Pydantic BookingResponse 
+    # has a different structure (nested details) than the Flat DB model.
+    # Alternatively, we can add helper methods in Service to return the Response Object directly.
+    # But let's build it here or helper func.
+    
+    # Needs: seats list, journey_details
+    
+    # Fetch seats for this booking? 
+    # The BookingService created it, but the DB model doesn't explicitly allow easy access to seat NAMES 
+    # unless we query SeatAvailability or such.
+    
+    # To fix this properly, let's ask BookingService to return the enriched data dict or object.
+    
+    return BookingService.get_booking_response_object(db, new_booking.id)
 
 
-@router.get("/{booking_reference}", response_model=Booking)
+@router.get("/{booking_reference}", response_model=BookingResponse)
 async def get_booking(
     booking_reference: str,
     db: Session = Depends(get_db)
 ):
     """Get booking details by booking reference"""
+    # Helper to get the full formatted object
     booking = BookingService.get_booking_details(db, booking_reference)
-    return booking
+    return BookingService.get_booking_response_object(db, booking.id)
 
 
 @router.get("/history/{email}")

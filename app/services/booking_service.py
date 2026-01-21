@@ -4,19 +4,20 @@ from ..models.booking import Booking, BookingMeal
 from ..models.seat import Seat
 from ..models.station import Station
 from ..models.meal import Meal
-from ..core.exceptions import (
+from ..core.common import (
     BookingNotFoundException,
     InvalidStationException,
     CancellationNotAllowedException,
-    InvalidBookingException
+    InvalidBookingException,
+    generate_booking_reference,
+    generate_pnr
 )
-from ..core.security import generate_booking_reference
-from ..utils.validators import (
+from ..utils.utils import (
     validate_email,
     validate_phone,
-    validate_station_combination
+    validate_station_combination,
+    calculate_refund_amount
 )
-from ..utils.helpers import calculate_refund_amount
 from .seat_service import SeatService
 
 
@@ -26,28 +27,16 @@ class BookingService:
     @staticmethod
     def create_booking(
         db: Session,
-        user_name: str,
-        email: str,
-        phone: str,
-        from_station_id: int,
-        to_station_id: int,
-        seat_id: int,
-        journey_date: str,
-        meal_ids: list = None
+        booking_data
     ) -> Booking:
         """
         Create a new booking with validation
         """
-        # Validate input
-        if not validate_email(email):
-            raise InvalidBookingException("Invalid email format")
-        
-        if not validate_phone(phone):
-            raise InvalidBookingException("Invalid phone number format")
+        # Validate input (Pydantic does most, but we check logic)
         
         # Get stations
-        from_station = db.query(Station).filter(Station.id == from_station_id).first()
-        to_station = db.query(Station).filter(Station.id == to_station_id).first()
+        from_station = db.query(Station).filter(Station.name == booking_data.from_station).first()
+        to_station = db.query(Station).filter(Station.name == booking_data.to_station).first()
         
         if not from_station or not to_station:
             raise InvalidStationException("One or both stations not found")
@@ -58,55 +47,87 @@ class BookingService:
                 "From station must come before to station in the route"
             )
         
-        # Check seat availability
-        SeatService.check_seat_availability(
-            db, seat_id, from_station_id, to_station_id, journey_date
-        )
+        journey_date_str = booking_data.travel_date.strftime("%Y-%m-%d")
+
+        # Check availability for ALL seats
+        for seat_id in booking_data.seats:
+            SeatService.check_seat_availability(
+                db, seat_id, from_station.id, to_station.id, journey_date_str
+            )
         
         # Calculate price
-        price = SeatService.calculate_seat_price(
-            db, seat_id, from_station_id, to_station_id
-        )
+        total_seat_price = 0
+        for seat_id in booking_data.seats:
+            total_seat_price += SeatService.calculate_seat_price(
+                db, seat_id, from_station.id, to_station.id
+            )
         
+        # Calculate meal price
+        total_meal_price = 0
+        if booking_data.meals:
+            for meal_item in booking_data.meals:
+                meal = db.query(Meal).filter(Meal.id == meal_item.meal_id).first()
+                if meal:
+                    total_meal_price += (meal.price * meal_item.quantity)
+        
+        total_amount = total_seat_price + total_meal_price
+
         # Generate booking reference
         booking_reference = generate_booking_reference(
             from_station.name, to_station.name
+        )
+        pnr = generate_pnr()
+
+        from ..services.prediction_service import PredictionService
+        
+        booking_date_obj = datetime.now().date()
+        journey_date_obj = booking_data.travel_date
+        
+        confirmation_probability = PredictionService.predict_confirmation_probability(
+            booking_date_obj,
+            journey_date_obj,
+            len(booking_data.seats)
         )
         
         # Create booking
         booking = Booking(
             booking_reference=booking_reference,
-            user_name=user_name,
-            email=email,
-            phone=phone,
-            from_station_id=from_station_id,
-            to_station_id=to_station_id,
-            seat_id=seat_id,
+            pnr=pnr,
+            user_name=booking_data.passenger_details.name,
+            email=booking_data.passenger_details.email,
+            phone=booking_data.passenger_details.contact,
+            from_station_id=from_station.id,
+            to_station_id=to_station.id,
+            # seat_id removed
             booking_date=datetime.now().strftime("%Y-%m-%d"),
-            journey_date=journey_date,
+            journey_date=journey_date_str,
             status="CONFIRMED",
-            total_amount=price
+            total_amount=total_amount,
+            confirmation_probability=confirmation_probability
         )
         
         db.add(booking)
-        db.flush()  # Get booking ID without committing
+        db.flush()  # Get booking ID
         
-        # Block the seat
-        SeatService.block_seat(
-            db, seat_id, from_station_id, to_station_id, journey_date, booking.id
-        )
+        # Block ALL seats
+        for seat_id in booking_data.seats:
+            SeatService.block_seat(
+                db, seat_id, from_station.id, to_station.id, journey_date_str, booking.id
+            )
         
-        # Add meals if provided
-        if meal_ids:
-            for meal_id in meal_ids:
-                meal = db.query(Meal).filter(Meal.id == meal_id).first()
-                if meal:
-                    booking_meal = BookingMeal(
-                        booking_id=booking.id,
-                        meal_id=meal_id
-                    )
-                    db.add(booking_meal)
-                    booking.total_amount += meal.price
+        # Add meals
+        if booking_data.meals:
+            for meal_item in booking_data.meals:
+                meal_id = meal_item.meal_id
+                quantity = meal_item.quantity
+                
+                # Verify meal exists again just to be safe or skip
+                booking_meal = BookingMeal(
+                    booking_id=booking.id,
+                    meal_id=meal_id,
+                    quantity=quantity
+                )
+                db.add(booking_meal)
         
         db.commit()
         db.refresh(booking)
@@ -168,11 +189,15 @@ class BookingService:
         booking.refund_amount = refund_info["refund_amount"]
         booking.cancelled_at = datetime.utcnow()
         
-        # Release the seat
-        SeatService.release_seat(
-            db, booking.seat_id, booking.from_station_id,
-            booking.to_station_id, booking.journey_date
-        )
+        # Release ALL seat
+        from ..models.seat import SeatAvailability # Local import to avoid circular dependency if any
+        
+        booked_availability = db.query(SeatAvailability).filter(
+            SeatAvailability.booked_by == booking.id
+        ).all()
+        
+        for availability in booked_availability:
+            db.delete(availability)
         
         db.commit()
         
@@ -230,3 +255,59 @@ class BookingService:
         db.refresh(booking)
         
         return booking
+
+    @staticmethod
+    def get_booking_response_object(db: Session, booking_id: int) -> dict:
+        """
+        Construct a detailed dictionary matching BookingResponse schema
+        """
+        booking = db.query(Booking).filter(Booking.id == booking_id).first()
+        if not booking:
+            raise BookingNotFoundException("Booking not found")
+        
+        from ..models.seat import SeatAvailability # Local import
+
+        # Get Stations
+        from_st = db.query(Station).filter(Station.id == booking.from_station_id).first()
+        to_st = db.query(Station).filter(Station.id == booking.to_station_id).first()
+        
+        # Get Seats
+        booked_availability = db.query(SeatAvailability).filter(
+            SeatAvailability.booked_by == booking.id
+        ).all()
+        
+        seat_ids = {ba.seat_id for ba in booked_availability}
+        seats = db.query(Seat).filter(Seat.id.in_(seat_ids)).all()
+        seat_names = sorted([s.seat_number for s in seats])
+        
+        # Get Meals
+        meals = []
+        for bm in booking.meals:
+            meals.append({
+                "meal_id": bm.meal_id,
+                "quantity": bm.quantity
+            })
+            
+        return {
+            "booking_id": booking.booking_reference,
+            "pnr": booking.pnr,
+            "status": booking.status,
+            "total_amount": booking.total_amount,
+            "confirmation_probability": booking.confirmation_probability,
+            "seats": seat_names,
+            "meals": meals,
+            "journey_details": {
+                "from_station": from_st.name,
+                "to_station": to_st.name,
+                "date": datetime.strptime(booking.journey_date, "%Y-%m-%d").date(),
+                "departure_time": from_st.departure_time,
+                "arrival_time": to_st.arrival_time,
+                "duration": "TBD"
+            },
+            "passenger_details": {
+                "name": booking.user_name,
+                "contact": booking.phone,
+                "email": booking.email
+            },
+            "created_at": booking.created_at
+        }
