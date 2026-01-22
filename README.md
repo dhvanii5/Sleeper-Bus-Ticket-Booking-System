@@ -27,6 +27,14 @@ Sleeper-Bus-Ticket-Booking-System/
 │   ├── core/                     # Core utilities
 │   │   └── common.py             # Consolidated exceptions & security
 │   │
+│   ├── ml/                       # Machine Learning System
+│   │   ├── train_model.py        # Model training script
+│   │   ├── predictor.py          # Inference & factor analysis
+│   │   └── saved_models/         # Serialized models & encoders
+│   │
+│   ├── routes/                   # Custom API routes
+│   │   └── prediction_routes.py  # Prediction ML endpoints
+│   │
 │   └── utils/                    # Helper functions
 │       └── utils.py              # Consolidated validators & helpers
 │
@@ -80,8 +88,9 @@ This project prioritizes **professional software engineering practices** over mi
 
 1. **Install Dependencies**: `pip install -r requirements.txt`
 2. **Setup Database**: Update `DATABASE_URL` in `app/config.py` and run `python scripts/init_db.py`.
-3. **Run Server**: `uvicorn app.main:app --reload`.
-4. **Access Docs**: http://localhost:8000/docs.
+3. **Train Prediction Model**: `python -m app.ml.train_model`
+4. **Run Server**: `uvicorn app.main:app --reload`.
+5. **Access Docs**: http://localhost:8000/docs.
 
 ## 🧪 Testing
 
