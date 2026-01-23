@@ -52,10 +52,10 @@ The model exposes feature importance through **qualitative impact descriptions**
 
 | Coefficient Magnitude | Interpretation |
 |-----------------------|----------------|
-| |coef| > 0.5 | Strong impact (positive/negative) |
-| |coef| > 0.2 | Moderate impact |
-| |coef| > 0.05 | Mild impact |
-| |coef| ≤ 0.05 | Neutral |
+| \|coef\| > 0.5 | Strong impact (positive/negative) |
+| \|coef\| > 0.2 | Moderate impact |
+| \|coef\| > 0.05 | Mild impact |
+| \|coef\| ≤ 0.05 | Neutral |
 
 **Example coefficients** (from training):
 - `is_holiday_season`: -0.96 → "Strong negative impact"
