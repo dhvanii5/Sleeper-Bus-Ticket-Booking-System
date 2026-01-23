@@ -272,40 +272,40 @@ Email: dhvanikapatel05@gmail.com
 
 ---
 
-## 🧪 Test Cases
+## Test Cases
 
 ### 1. Functional Test Cases
-- ✅ **User can view available seats** - GET `/api/v1/seats` returns list with pricing
-- ✅ **User cannot book already booked seat** - Returns HTTP 409 Conflict error
-- ✅ **Meal selection saved correctly** - Booking response includes selected meals
-- ✅ **Cancelled seat becomes available** - Seat shows as available after cancellation
-- ✅ **Booking probability API returns percentage** - Prediction endpoint returns 50-95% score
-- ✅ **Multi-seat booking is atomic** - All seats reserved or none
-- ✅ **Dynamic pricing works** - Price varies by distance and seat type
-- ✅ **Refund policy applied correctly** - Refund % based on cancellation timeline
-- ✅ **PNR and booking reference generated** - Unique identifiers created
-- ✅ **Email validation enforced** - Invalid emails rejected with 422 error
+- **User can view available seats** - GET `/api/v1/seats` returns list with pricing
+- **User cannot book already booked seat** - Returns HTTP 409 Conflict error
+- **Meal selection saved correctly** - Booking response includes selected meals
+- **Cancelled seat becomes available** - Seat shows as available after cancellation
+- **Booking probability API returns percentage** - Prediction endpoint returns 50-95% score
+- **Multi-seat booking is atomic** - All seats reserved or none
+- **Dynamic pricing works** - Price varies by distance and seat type
+- **Refund policy applied correctly** - Refund % based on cancellation timeline
+- **PNR and booking reference generated** - Unique identifiers created
+- **Email validation enforced** - Invalid emails rejected with 422 error
 
 ### 2. Edge Cases
-- ✅ **Booking last available seat** - Seat properly blocked, next request gets 409
-- ✅ **Cancelling already cancelled booking** - Returns 400 Bad Request
-- ✅ **Invalid seat number** - Returns 400 with clear error message
-- ✅ **Backwards route booking** - Detects and rejects Mumbai → Ahmedabad
-- ✅ **Past travel date** - Validation rejects dates before today
-- ✅ **Overlapping route segments** - Prevents seat booking if any segment conflicts
-- ✅ **Missing required parameters** - Returns 422 with validation details
-- ✅ **Booking with 0 seats** - Rejected by min_items=1 validation
-- ✅ **More than 5 seats requested** - Rejected by max_items=5 validation
-- ✅ **Phone number not 10 digits** - Pattern validation rejects invalid format
+- **Booking last available seat** - Seat properly blocked, next request gets 409
+- **Cancelling already cancelled booking** - Returns 400 Bad Request
+- **Invalid seat number** - Returns 400 with clear error message
+- **Backwards route booking** - Detects and rejects Mumbai → Ahmedabad
+- **Past travel date** - Validation rejects dates before today
+- **Overlapping route segments** - Prevents seat booking if any segment conflicts
+- **Missing required parameters** - Returns 422 with validation details
+- **Booking with 0 seats** - Rejected by min_items=1 validation
+- **More than 5 seats requested** - Rejected by max_items=5 validation
+- **Phone number not 10 digits** - Pattern validation rejects invalid format
 
 ### 3. UI/UX Validation (API Response Quality)
-- ✅ **Seat status clearly indicated** - Response shows "available" vs "booked"
-- ✅ **Error messages are human-readable** - No raw stack traces in API responses
-- ✅ **Booking confirmation includes all details** - Complete journey info in response
-- ✅ **Proper HTTP status codes** - 200 (OK), 400 (Bad Request), 404 (Not Found), 409 (Conflict), 422 (Validation Error)
-- ✅ **Consistent data formats** - Dates in YYYY-MM-DD, times in HH:MM
-- ✅ **ML factor breakdown provided** - Prediction response shows contributing factors
-- ✅ **Cancellation response shows refund details** - Amount, percentage, status clearly stated
+- **Seat status clearly indicated** - Response shows "available" vs "booked"
+- **Error messages are human-readable** - No raw stack traces in API responses
+- **Booking confirmation includes all details** - Complete journey info in response
+- **Proper HTTP status codes** - 200 (OK), 400 (Bad Request), 404 (Not Found), 409 (Conflict), 422 (Validation Error)
+- **Consistent data formats** - Dates in YYYY-MM-DD, times in HH:MM
+- **ML factor breakdown provided** - Prediction response shows contributing factors
+- **Cancellation response shows refund details** - Amount, percentage, status clearly stated
 
 ---
 
