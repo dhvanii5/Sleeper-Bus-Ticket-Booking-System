@@ -16,7 +16,6 @@ To run the application:
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.v1 import stations, seats, bookings, meals, predictions
-from .routes import prediction_routes
 
 # =============================================================================
 # FASTAPI APPLICATION INITIALIZATION
@@ -65,12 +64,9 @@ app.include_router(bookings.router, prefix="/api/v1/bookings", tags=["Bookings"]
 # GET /api/v1/meals - List available meals
 app.include_router(meals.router, prefix="/api/v1/meals", tags=["Meals"])
 
-# Predictions - AI/ML features
-# POST /api/v1/predictions/predict - Get booking confirmation probability
-app.include_router(predictions.router, prefix="/api/v1/predictions", tags=["Predictions"])
-
-# New Prediction API (from additional task requirements)
-app.include_router(prediction_routes.router, prefix="/api/prediction", tags=["Prediction ML"])
+# Predictions - Single heuristic endpoint
+# POST /prediction/booking-confirmation - Feature-rich, explainable scoring
+app.include_router(predictions.router, prefix="/prediction", tags=["Prediction"])
 
 # =============================================================================
 # ROOT ENDPOINT

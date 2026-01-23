@@ -1,3 +1,5 @@
+"""Booking API Endpoints - Handle ticket reservations and cancellations"""
+
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from typing import List
@@ -14,24 +16,13 @@ async def create_booking(
     db: Session = Depends(get_db)
 ):
     """
-    Create a new booking
+    Create new booking - validates availability, calculates price, generates booking reference
+    Returns booking details with confirmation probability from ML model
     """
-    # Service returns database Booking model
+    # Create booking in database (handles seat blocking, price calculation)
     new_booking = BookingService.create_booking(db, booking)
     
-    # We need to explicitly construct the response because our Pydantic BookingResponse 
-    # has a different structure (nested details) than the Flat DB model.
-    # Alternatively, we can add helper methods in Service to return the Response Object directly.
-    # But let's build it here or helper func.
-    
-    # Needs: seats list, journey_details
-    
-    # Fetch seats for this booking? 
-    # The BookingService created it, but the DB model doesn't explicitly allow easy access to seat NAMES 
-    # unless we query SeatAvailability or such.
-    
-    # To fix this properly, let's ask BookingService to return the enriched data dict or object.
-    
+    # Convert DB model to API response format (includes enriched data like seat numbers, journey details)
     return BookingService.get_booking_response_object(db, new_booking.id)
 
 
@@ -40,9 +31,11 @@ async def get_booking(
     booking_reference: str,
     db: Session = Depends(get_db)
 ):
-    """Get booking details by booking reference"""
-    # Helper to get the full formatted object
+    """Fetch booking details using booking reference (e.g., BUS-AHM-MUM-20260123-XYZW)"""
+    # Retrieve booking from database
     booking = BookingService.get_booking_details(db, booking_reference)
+    
+    # Format and return enriched response
     return BookingService.get_booking_response_object(db, booking.id)
 
 

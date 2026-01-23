@@ -50,17 +50,20 @@ class BookingService:
         journey_date_str = booking_data.travel_date.strftime("%Y-%m-%d")
 
         # Check availability for ALL seats
-        for seat_id in booking_data.seats:
+        for seat_number in booking_data.seats:
             SeatService.check_seat_availability(
-                db, seat_id, from_station.id, to_station.id, journey_date_str
+                db, seat_number, from_station.id, to_station.id, journey_date_str
             )
         
         # Calculate price
         total_seat_price = 0
-        for seat_id in booking_data.seats:
-            total_seat_price += SeatService.calculate_seat_price(
-                db, seat_id, from_station.id, to_station.id
-            )
+        for seat_number in booking_data.seats:
+            # Get seat ID from seat number for price calculation
+            seat = db.query(Seat).filter(Seat.seat_number == seat_number).first()
+            if seat:
+                total_seat_price += SeatService.calculate_seat_price(
+                    db, seat.id, from_station.id, to_station.id
+                )
         
         # Calculate meal price
         total_meal_price = 0
@@ -110,9 +113,9 @@ class BookingService:
         db.flush()  # Get booking ID
         
         # Block ALL seats
-        for seat_id in booking_data.seats:
+        for seat_number in booking_data.seats:
             SeatService.block_seat(
-                db, seat_id, from_station.id, to_station.id, journey_date_str, booking.id
+                db, seat_number, from_station.id, to_station.id, journey_date_str, booking.id
             )
         
         # Add meals
